@@ -152,6 +152,32 @@ st.markdown("""
 @st.cache_resource
 def load_models_and_data():
     models_dir = os.path.join(BASE_DIR, "models", "saved_models")
+    
+    # Check if models exist and can be loaded with the host's scikit-learn version
+    need_train = False
+    required_files = [
+        "salary_regressor.joblib", "readiness_classifier.joblib",
+        "talent_clusterer.joblib", "pca_transformer.joblib",
+        "feature_scaler.joblib", "data_cleaner.joblib",
+        "label_encoder.joblib", "metrics.json"
+    ]
+    for rf in required_files:
+        if not os.path.exists(os.path.join(models_dir, rf)):
+            need_train = True
+            break
+            
+    if not need_train:
+        try:
+            reg = joblib.load(os.path.join(models_dir, "salary_regressor.joblib"))
+            clf = joblib.load(os.path.join(models_dir, "readiness_classifier.joblib"))
+        except Exception:
+            # Model was pickled on a different scikit-learn version. Retrain automatically!
+            need_train = True
+
+    if need_train:
+        from src.models.train import run_pipeline
+        run_pipeline()
+
     reg = joblib.load(os.path.join(models_dir, "salary_regressor.joblib"))
     clf = joblib.load(os.path.join(models_dir, "readiness_classifier.joblib"))
     kmeans = joblib.load(os.path.join(models_dir, "talent_clusterer.joblib"))
