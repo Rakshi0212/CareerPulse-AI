@@ -119,6 +119,63 @@ class TestCareerPulsePipeline(unittest.TestCase):
                 "High-Demand Specialist"
             ])
 
+    def test_06_resume_parser_and_evaluator(self):
+        """Verify resume parsing, skill extraction, and ATS health scoring."""
+        from src.resume_intelligence.parser import ResumeParser
+        from src.resume_intelligence.evaluator import ResumeEvaluator
+
+        parser = ResumeParser()
+        sample_resume = """Alex Sharma
+Email: alex.sharma@example.com | GitHub: github.com/alexsharma
+Education: B.Tech Computer Science, Tier 1 IIT (2024)
+Skills: Python, SQL, Docker, PyTorch, AWS
+Experience:
+- Worked on a machine learning model for churn prediction.
+- Helped with backend APIs in Python.
+Projects:
+- Built a high throughput API serving 10,000 requests per minute with 99.9% uptime.
+LeetCode: Solved 180+ problems.
+"""
+        parsed = parser.parse_resume(sample_resume)
+        self.assertEqual(parsed["education_level"], "B.Tech/B.E")
+        self.assertEqual(parsed["has_python"], 1)
+        self.assertEqual(parsed["has_sql"], 1)
+        self.assertEqual(parsed["has_docker_k8s"], 1)
+        self.assertEqual(parsed["has_ml_pytorch"], 1)
+        self.assertEqual(parsed["has_github_link"], True)
+        self.assertGreaterEqual(parsed["dsa_problems_solved"], 150)
+
+        eval_res = ResumeEvaluator.evaluate(sample_resume, parsed)
+        self.assertIn("ats_score", eval_res)
+        self.assertGreaterEqual(eval_res["ats_score"], 50)
+        self.assertGreaterEqual(len(eval_res["weak_bullets"]), 1)
+
+    def test_07_resume_corrector_and_ai_agent(self):
+        """Verify automated bullet rewriting and AI copilot responses."""
+        from src.resume_intelligence.corrector import ResumeCorrector
+        from src.resume_intelligence.ai_agent import CareerCopilotAgent
+
+        # Test bullet rewriting
+        weak = "worked on an ML model for customer prediction"
+        corrected = ResumeCorrector.rewrite_weak_bullet(weak)
+        self.assertIn("Engineered", corrected)
+        self.assertTrue(any(char.isdigit() or "%" in corrected for char in corrected))
+
+        # Test AI Copilot Agent
+        agent = CareerCopilotAgent({
+            "target_role": "AI / Machine Learning Engineer",
+            "predicted_salary": 16.5,
+            "readiness_tier": "Job-Ready Mid-Level",
+            "dsa_problems_solved": 150,
+            "ats_score": 82
+        })
+        interview_reply = agent.respond("Give me interview questions")
+        self.assertIn("STAR Method", interview_reply)
+        self.assertIn("Technical Interview Questions", interview_reply)
+
+        salary_reply = agent.respond("How do I reach 25 LPA?")
+        self.assertIn("Strategy to Scale", salary_reply)
+
 
 if __name__ == "__main__":
     unittest.main()

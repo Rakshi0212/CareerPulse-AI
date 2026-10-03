@@ -1,12 +1,14 @@
 """
-CareerPulse AI — Tech Career Skill Gap & Salary Valuation Platform
-==================================================================
-Interactive Streamlit Dashboard designed for Students, Freshers, and Tech Job Seekers:
+CareerPulse AI — Tech Career Skill Gap, Salary Valuation & Resume Intelligence Platform
+========================================================================================
+Interactive Streamlit Dashboard featuring:
+- Resume Upload, Parsing & ATS Quality Diagnostic
+- Automated Resume Polisher & Google XYZ-formula Bullet Corrector
+- Context-Aware AI Career Copilot / Agent
 - Live Market Salary Valuation & Readiness Tier Classifier
 - High-ROI Skill Gap Analyzer & Learning Roadmap
 - Tech Market Salary Analytics & Experience Curves
-- Unsupervised Talent Archetypes (PCA Clustering)
-- Model Benchmarks & Governance KPIs
+- Unsupervised Talent Archetypes (PCA Clustering) & Governance
 """
 
 import os
@@ -26,10 +28,14 @@ if BASE_DIR not in sys.path:
 from src.models.train import FEATURE_COLUMNS
 from src.features.engineering import CandidateFeatureEngineer
 from src.skill_analyzer.analyzer import CareerSkillAnalyzer, ROLE_TARGETS, SKILL_DISPLAY_NAMES
+from src.resume_intelligence.parser import ResumeParser
+from src.resume_intelligence.evaluator import ResumeEvaluator
+from src.resume_intelligence.corrector import ResumeCorrector
+from src.resume_intelligence.ai_agent import CareerCopilotAgent
 
 # Page Setup
 st.set_page_config(
-    page_title="CareerPulse AI — Tech Career & Salary Valuation",
+    page_title="CareerPulse AI — Resume Intelligence & Tech Valuation",
     page_icon="🚀",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -120,7 +126,7 @@ st.markdown("""
         box-shadow: 0 0 12px rgba(245, 158, 11, 0.25);
     }
 
-    /* Roadmap Action Card */
+    /* Action Card */
     .action-card {
         background: #0f172a;
         border-left: 4px solid #818cf8;
@@ -130,6 +136,14 @@ st.markdown("""
         color: #e2e8f0;
         font-size: 0.92rem;
         line-height: 1.5;
+    }
+
+    .correction-box {
+        background: #111e33;
+        border: 1px solid #233554;
+        border-radius: 10px;
+        padding: 14px 18px;
+        margin-bottom: 12px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -176,6 +190,15 @@ label_enc = artifacts["label_enc"]
 metrics = artifacts["metrics"]
 candidates_df = artifacts["df"]
 engineer = CandidateFeatureEngineer()
+parser = ResumeParser()
+
+# Initialize Session State
+if "resume_profile" not in st.session_state:
+    st.session_state["resume_profile"] = None
+if "resume_evaluation" not in st.session_state:
+    st.session_state["resume_evaluation"] = None
+if "ai_chat_history" not in st.session_state:
+    st.session_state["ai_chat_history"] = []
 
 # --- TOP HEADER ---
 st.markdown("""
@@ -184,32 +207,228 @@ st.markdown("""
         <span>🚀 CareerPulse AI</span>
     </div>
     <div class="career-subtitle">
-        Tech Career Skill Gap, Market Salary Valuation & High-ROI Upskilling Engine for Students & Job Seekers
+        AI Resume Intelligence, Automated Bullet Polisher, Career Copilot & Tech Salary Valuation
     </div>
 </div>
 """, unsafe_allow_html=True)
 
 # Main Navigation
 tabs = st.tabs([
-    "🎓 Student Valuation & Readiness",
+    "📄 Resume Scanner & AI Corrector",
+    "🤖 AI Career Copilot (Agent)",
+    "🎓 Live Valuation Calculator",
     "🚀 Skill Gap & High-ROI Roadmap",
-    "📊 Job Market Trends & Salary Analytics",
-    "🧬 Talent Archetypes (PCA Clusters)",
-    "🎯 Model Benchmarks & Governance"
+    "📊 Job Market Trends & Analytics",
+    "🎯 Talent Archetypes & Governance"
 ])
 
 # ==============================================================================
-# TAB 1: STUDENT VALUATION & READINESS
+# TAB 1: RESUME SCANNER & AI CORRECTOR
 # ==============================================================================
 with tabs[0]:
+    st.subheader("Automated Resume Scanner, ATS Diagnostic & AI Polisher")
+    st.caption("Upload your resume (PDF or TXT) or paste raw text. CareerPulse detects flaws, weak passive verbs, scores your ATS health, and generates a polished Google XYZ-formula resume!")
+
+    u_col1, u_col2 = st.columns([1.2, 1.2])
+
+    with u_col1:
+        st.markdown("##### 📤 1. Upload or Paste Resume")
+        upload_choice = st.radio("Upload Method", ["Upload Resume File (.pdf, .txt)", "Paste Resume Text"], horizontal=True)
+
+        resume_text = ""
+        if upload_choice == "Upload Resume File (.pdf, .txt)":
+            uploaded_file = st.file_uploader("Upload your resume", type=["pdf", "txt"])
+            if uploaded_file is not None:
+                resume_text = parser.extract_text_from_bytes(uploaded_file.read(), uploaded_file.name)
+        else:
+            default_sample = """John Doe
+Email: john.doe@example.com | GitHub: github.com/johndoe | LinkedIn: linkedin.com/in/johndoe
+Education: B.Tech Computer Science, Tier 2 Engineering College (2024)
+
+Skills: Python, SQL, Machine Learning, Git
+
+Experience:
+- Worked on an ML model for churn prediction.
+- Helped with building frontend in React for the team.
+- Responsible for writing backend SQL queries and APIs.
+
+Projects:
+- Did a customer segmentation project using Python.
+- Participated in LeetCode coding practice (solved around 80 problems).
+"""
+            resume_text = st.text_area("Paste Resume Text", default_sample, height=240)
+
+        analyze_btn = st.button("🔍 Scan & Evaluate Resume with AI", type="primary", use_container_width=True)
+
+    if analyze_btn and resume_text.strip():
+        parsed = parser.parse_resume(resume_text)
+        evaluation = ResumeEvaluator.evaluate(resume_text, parsed)
+        st.session_state["resume_profile"] = parsed
+        st.session_state["resume_evaluation"] = evaluation
+
+    with u_col2:
+        st.markdown("##### 📊 2. ATS Health & Flaw Diagnostic")
+        if st.session_state["resume_evaluation"]:
+            ev = st.session_state["resume_evaluation"]
+            prof = st.session_state["resume_profile"]
+
+            # ATS Score Meter
+            st.markdown(f"""
+            <div style="background:#0d1729; border: 1px solid #1e293b; border-radius: 12px; padding: 18px; text-align: center; margin-bottom: 16px;">
+                <div style="color: #94a3b8; font-size: 0.85rem; font-weight: 600; text-transform: uppercase;">ATS Resume Quality Score</div>
+                <div style="font-size: 2.6rem; font-weight: 800; color: {ev['grade_color']};">{ev['ats_score']}/100</div>
+                <div style="color: #cbd5e1; font-weight: 600; font-size: 0.95rem;">{ev['status']}</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+            if ev["penalties"]:
+                st.markdown("###### ⚠️ Identified Resume Flaws:")
+                for pen in ev["penalties"]:
+                    st.markdown(f"- ❌ {pen}")
+
+            if ev["strengths"]:
+                st.markdown("###### ✅ Verified Strengths:")
+                for s in ev["strengths"]:
+                    st.markdown(f"- ✔️ {s}")
+        else:
+            st.info("Upload or paste your resume and click 'Scan & Evaluate Resume' to see your ATS diagnostic.")
+
+    st.divider()
+
+    # SECTION 3: AUTOMATED RESUME POLISHER & CORRECTOR
+    if st.session_state["resume_evaluation"]:
+        st.markdown("### ✨ Automated AI Resume Polisher & Bullet Corrector")
+        st.caption("CareerPulse automatically rewrites weak passive bullets into high-impact Google XYZ achievements and structures an ATS-compliant resume.")
+
+        c_left, c_right = st.columns([1.2, 1.2])
+
+        with c_left:
+            st.markdown("##### 🛠️ Original Weak Bullets vs. AI Corrections")
+            weak_bullets = st.session_state["resume_evaluation"]["weak_bullets"]
+            if weak_bullets:
+                for idx, b in enumerate(weak_bullets):
+                    corrected = ResumeCorrector.rewrite_weak_bullet(b["original"])
+                    st.markdown(f"""
+                    <div class="correction-box">
+                        <div style="color: #f87171; font-size: 0.85rem; font-weight: 600;">❌ BEFORE (Passive / Weak):</div>
+                        <div style="color: #94a3b8; font-size: 0.88rem; margin: 4px 0 8px 0;">"{b['original']}"</div>
+                        <div style="color: #34d399; font-size: 0.85rem; font-weight: 600;">✨ AFTER (Google XYZ Impact Format):</div>
+                        <div style="color: #f8fafc; font-size: 0.9rem;">{corrected}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+            else:
+                st.success("No weak passive verbs detected! Your bullet points already use strong active language.")
+
+        with c_right:
+            st.markdown("##### 📥 Export Fully Polished ATS Resume")
+            target_role = st.selectbox(
+                "Optimize Resume for Target Role",
+                list(ROLE_TARGETS.keys()),
+                index=0
+            )
+
+            polished_text = ResumeCorrector.generate_polished_resume(
+                raw_text=st.session_state["resume_profile"]["raw_text"],
+                parsed_profile=st.session_state["resume_profile"],
+                weak_bullets=st.session_state["resume_evaluation"]["weak_bullets"],
+                target_role=target_role
+            )
+
+            st.text_area("Polished ATS-Compliant Markdown Resume", polished_text, height=320)
+
+            st.download_button(
+                label="📥 Download Polished Resume (.md)",
+                data=polished_text,
+                file_name="CareerPulse_Polished_Resume.md",
+                mime="text/markdown",
+                use_container_width=True
+            )
+
+
+# ==============================================================================
+# TAB 2: AI CAREER COPILOT (AGENT)
+# ==============================================================================
+with tabs[1]:
+    st.subheader("CareerPulse AI Copilot — Your Personal Career & Interview Agent")
+    st.caption("Chat with an intelligent career copilot who understands your exact parsed resume, predicted market valuation, and target job aspirations.")
+
+    # Build Agent Context
+    if st.session_state["resume_profile"]:
+        p = st.session_state["resume_profile"]
+        agent_context = {
+            "target_role": "AI / Machine Learning Engineer",
+            "predicted_salary": 14.8,
+            "readiness_tier": "Job-Ready Mid-Level",
+            "dsa_problems_solved": p.get("dsa_problems_solved", 110),
+            "ats_score": st.session_state["resume_evaluation"]["ats_score"] if st.session_state["resume_evaluation"] else 75,
+            "missing_skills": [{"name": "Docker & Containers"}, {"name": "AWS Cloud Architecture"}]
+        }
+    else:
+        agent_context = {
+            "target_role": "AI / Machine Learning Engineer",
+            "predicted_salary": 14.8,
+            "readiness_tier": "Job-Ready Mid-Level",
+            "dsa_problems_solved": 110,
+            "ats_score": 78,
+            "missing_skills": [{"name": "Docker & Containers"}, {"name": "AWS Cloud Architecture"}]
+        }
+
+    agent = CareerCopilotAgent(agent_context)
+
+    # Quick Action Prompt Buttons
+    st.markdown("##### ⚡ Quick Copilot Prompts:")
+    q_col1, q_col2, q_col3, q_col4 = st.columns(4)
+    if q_col1.button("🎯 Mock Interview Questions"):
+        st.session_state["ai_chat_history"].append({"user": "Give me technical interview questions for my profile", "bot": agent.respond("Give me technical interview questions")})
+    if q_col2.button("💰 How to Reach ₹25+ LPA?"):
+        st.session_state["ai_chat_history"].append({"user": "How do I negotiate and scale to ₹25+ LPA?", "bot": agent.respond("salary increase to 25 lpa")})
+    if q_col3.button("📩 Cold Recruiter Message"):
+        st.session_state["ai_chat_history"].append({"user": "Draft a cold outreach message for LinkedIn recruiters", "bot": agent.respond("recruiter linkedin cold message")})
+    if q_col4.button("📄 Actionable Resume Advice"):
+        st.session_state["ai_chat_history"].append({"user": "How do I optimize my resume for ATS?", "bot": agent.respond("resume ats advice")})
+
+    st.write("")
+
+    # Chat Display
+    chat_container = st.container(height=380)
+    with chat_container:
+        if not st.session_state["ai_chat_history"]:
+            st.markdown("""
+            *Hello! I am your **CareerPulse AI Copilot**. I have analyzed your skills and valuation.*  
+            *Ask me anything about interview preparation, high-ROI skills, resume restructuring, or recruiter outreach!*
+            """)
+        else:
+            for chat in st.session_state["ai_chat_history"]:
+                with st.chat_message("user"):
+                    st.write(chat["user"])
+                with st.chat_message("assistant"):
+                    st.markdown(chat["bot"])
+
+    # Chat Input
+    user_msg = st.chat_input("Ask CareerPulse Copilot (e.g., 'What questions will I be asked?', 'How to improve my projects?')...")
+    if user_msg:
+        reply = agent.respond(user_msg)
+        st.session_state["ai_chat_history"].append({"user": user_msg, "bot": reply})
+        st.rerun()
+
+
+# ==============================================================================
+# TAB 3: LIVE VALUATION CALCULATOR
+# ==============================================================================
+with tabs[2]:
     st.subheader("Personalized Tech Salary Valuation & Readiness Diagnostic")
-    st.caption("Input your current college background, verified skills, and coding metrics to compute your fair market compensation package.")
+    st.caption("Input your college background, verified skills, and coding metrics to compute your fair market compensation package.")
 
     c1, c2, c3 = st.columns([1.1, 1.2, 1.5])
 
+    # Pre-populate from resume if available
+    default_exp = st.session_state["resume_profile"]["experience_years"] if st.session_state["resume_profile"] else 0.5
+    default_dsa = st.session_state["resume_profile"]["dsa_problems_solved"] if st.session_state["resume_profile"] else 110
+    default_proj = st.session_state["resume_profile"]["github_projects"] if st.session_state["resume_profile"] else 3
+
     with c1:
         st.markdown("##### 🏛️ Education & Experience")
-        exp_years = st.slider("Work Experience (Years)", 0.0, 8.0, 0.5, 0.5, help="0 for fresh college graduates")
+        exp_years = st.slider("Work Experience (Years)", 0.0, 8.0, float(default_exp), 0.5, help="0 for fresh college graduates")
         degree = st.selectbox("Highest Degree", ["B.Tech/B.E", "BCA/B.Sc CS", "M.Tech/M.S", "MCA", "Non-CS Degree"])
         college_tier = st.selectbox("College Tier", ["Tier 1 (IIT/NIT/BITS)", "Tier 2 (Top State/Private)", "Tier 3 (Affiliated Colleges)"], index=1)
         location = st.selectbox("Target Location", ["Tier 1 Tech Hub (Bengaluru/NCR/Hyd)", "Tier 2 City", "Remote Global"])
@@ -217,17 +436,21 @@ with tabs[0]:
 
     with c2:
         st.markdown("##### 💻 Coding & Portfolio Metrics")
-        dsa_solved = st.slider("DSA / LeetCode Problems Solved", 0, 450, 110, 10)
-        github_projects = st.slider("Production GitHub Projects", 0, 10, 3)
+        dsa_solved = st.slider("DSA / LeetCode Problems Solved", 0, 450, int(default_dsa), 10)
+        github_projects = st.slider("Production GitHub Projects", 0, 10, int(default_proj))
         certs = st.slider("Industry Certifications", 0, 4, 1)
 
         st.markdown("##### 🛠️ Verified Technical Skills")
-        has_python = st.checkbox("Python & Data Structures", value=True)
-        has_sql = st.checkbox("SQL & Relational Databases", value=True)
+        p_has_py = st.session_state["resume_profile"].get("has_python", 1) == 1 if st.session_state["resume_profile"] else True
+        p_has_sql = st.session_state["resume_profile"].get("has_sql", 1) == 1 if st.session_state["resume_profile"] else True
+        p_has_ml = st.session_state["resume_profile"].get("has_ml_pytorch", 1) == 1 if st.session_state["resume_profile"] else True
+
+        has_python = st.checkbox("Python & Data Structures", value=p_has_py)
+        has_sql = st.checkbox("SQL & Relational Databases", value=p_has_sql)
         has_react_node = st.checkbox("React / Node.js Full Stack", value=False)
         has_cloud_aws = st.checkbox("Cloud Computing (AWS / GCP)", value=False)
         has_docker_k8s = st.checkbox("Docker & Containers", value=False)
-        has_ml_pytorch = st.checkbox("Machine Learning & PyTorch", value=True)
+        has_ml_pytorch = st.checkbox("Machine Learning & PyTorch", value=p_has_ml)
         has_system_design = st.checkbox("System Design & Architecture", value=False)
 
     # Compute Features
@@ -285,7 +508,6 @@ with tabs[0]:
         for cls_name, prob in zip(label_enc.classes_, tier_probs):
             st.progress(float(prob), text=f"{cls_name}: {prob*100:.1f}%")
 
-        # Metric Chips
         coding_idx = engineered_input["coding_intensity_index"].iloc[0]
         skill_count = engineered_input["skill_breadth"].iloc[0]
 
@@ -300,16 +522,17 @@ with tabs[0]:
 
 
 # ==============================================================================
-# TAB 2: SKILL GAP & HIGH-ROI ROADMAP
+# TAB 4: SKILL GAP & HIGH-ROI ROADMAP
 # ==============================================================================
-with tabs[1]:
+with tabs[3]:
     st.subheader("High-ROI Skill Gap & Career Acceleration Engine")
     st.caption("Select your target dream role to discover your exact skill gap, missing competencies, and how much salary boost each new skill adds.")
 
-    target_role = st.selectbox(
+    target_role_select = st.selectbox(
         "Select Your Target Tech Role",
         list(ROLE_TARGETS.keys()),
-        index=0
+        index=0,
+        key="role_select_key"
     )
 
     current_skills_dict = {
@@ -324,9 +547,8 @@ with tabs[1]:
         "github_projects": github_projects
     }
 
-    gap_analysis = CareerSkillAnalyzer.analyze_gap(current_skills_dict, target_role)
+    gap_analysis = CareerSkillAnalyzer.analyze_gap(current_skills_dict, target_role_select)
 
-    # Top KPI Metrics Row
     g1, g2, g3, g4 = st.columns(4)
     g1.metric("Role Match Score", f"{gap_analysis['match_score_pct']}%")
     g2.metric("Acquired Required Skills", f"{gap_analysis['acquired_count']}")
@@ -335,15 +557,12 @@ with tabs[1]:
 
     st.write("")
     st.progress(float(gap_analysis["match_score_pct"]) / 100.0, text=f"Role Readiness: {gap_analysis['match_score_pct']}%")
-
     st.divider()
 
     col_gap_left, col_gap_right = st.columns([1.2, 1.2])
 
     with col_gap_left:
         st.markdown("##### 📈 Missing Skills Ranked by Salary ROI")
-        st.caption("Prioritized order of skills to learn based on market compensation premium.")
-
         if gap_analysis["missing_skills"]:
             missing_df = pd.DataFrame(gap_analysis["missing_skills"])
             fig_roi, ax_roi = plt.subplots(figsize=(6, 3.2), facecolor="#0e1726")
@@ -364,15 +583,14 @@ with tabs[1]:
 
     with col_gap_right:
         st.markdown("##### 🎯 Step-by-Step Personalized Action Plan")
-        st.caption("Targeted guidance to prepare for technical interview rounds.")
         for action in gap_analysis["actionable_recommendations"]:
             st.markdown(f'<div class="action-card">{action}</div>', unsafe_allow_html=True)
 
 
 # ==============================================================================
-# TAB 3: JOB MARKET TRENDS & SALARY ANALYTICS (EDA)
+# TAB 5: JOB MARKET TRENDS & ANALYTICS (EDA)
 # ==============================================================================
-with tabs[2]:
+with tabs[4]:
     st.subheader("Tech Hiring Market Trends & Salary Distributions (3,500 Profiles)")
     st.caption("Exploratory Data Analysis showing how skills, college tiers, and roles impact market compensation.")
 
@@ -380,7 +598,6 @@ with tabs[2]:
 
     with e1:
         st.markdown("##### 🎓 College Tier vs. Salary Distribution (₹ LPA)")
-        st.caption("Notice how skills and open-source projects bridge the tier gap for high performers.")
         fig_box, ax_box = plt.subplots(figsize=(6, 3.8), facecolor="#0e1726")
         ax_box.set_facecolor("#0e1726")
 
@@ -485,10 +702,10 @@ with tabs[2]:
 
 
 # ==============================================================================
-# TAB 4: TALENT ARCHETYPES (PCA CLUSTERS)
+# TAB 6: TALENT ARCHETYPES & GOVERNANCE
 # ==============================================================================
-with tabs[3]:
-    st.subheader("Unsupervised Talent Archetypes (K-Means & PCA)")
+with tabs[5]:
+    st.subheader("Unsupervised Talent Archetypes & Governance Benchmarks")
     st.caption("Discovers natural groupings of tech candidates across 22 multi-dimensional career variables.")
 
     cl_left, cl_right = st.columns([1.4, 1])
@@ -522,78 +739,11 @@ with tabs[3]:
         st.pyplot(fig_pca)
 
     with cl_right:
-        st.markdown("##### 📊 Archetype Compensation & Profile Breakdown")
-        cluster_summary = candidates_df.groupby("cluster_archetype").agg(
-            Candidates=("candidate_id", "count"),
-            Avg_Exp=("experience_years", "mean"),
-            Avg_DSA=("dsa_problems_solved", "mean"),
-            Avg_Salary_LPA=("salary_lpa", "mean")
-        ).round(1)
+        st.markdown("##### 🎯 Model Governance Benchmarks")
+        st.metric("Salary Regressor R²", f"{metrics['regressor']['r2_score']:.4f}", f"MAE: {metrics['regressor']['mae_lpa']} LPA")
+        st.metric("Classifier Accuracy", f"{metrics['classifier']['accuracy']*100:.2f}%", f"F1: {metrics['classifier']['weighted_f1']:.4f}")
+        st.metric("Outlier Profiles Flagged", "105 Profiles", "3.0% Non-Traditional")
 
-        st.dataframe(cluster_summary, width="stretch")
-
-        st.markdown("""
-        **Talent Archetype Takeaways:**
-        - **Cluster 0 (Core Backend)**: Highest average DSA count (~240+ problems), strong C++/Java system foundations.
-        - **Cluster 1 (AI/ML Specialists)**: Premium salaries; heavy Python, SQL, and PyTorch deep learning stacks.
-        - **Cluster 2 (Cloud Architects)**: Kubernetes, Docker, and AWS certified engineers commanding remote premiums.
-        - **Cluster 3 (Full Stack / Entry)**: Freshers and junior web developers building foundational portfolio projects.
-        """)
-
-
-# ==============================================================================
-# TAB 5: MODEL BENCHMARKS & GOVERNANCE
-# ==============================================================================
-with tabs[4]:
-    st.subheader("Model Performance, Benchmarks & Explainability Governance")
-    st.caption("Rigorous evaluation on held-out test cohort (20% split) for salary regression and readiness classification.")
-
-    b1, b2, b3, b4 = st.columns(4)
-    b1.metric("Salary Regressor", metrics["regressor"]["model_type"])
-    b2.metric("Regression R² Score", f"{metrics['regressor']['r2_score']:.4f}", f"MAE: {metrics['regressor']['mae_lpa']} LPA")
-    b3.metric("Classifier Accuracy", f"{metrics['classifier']['accuracy']*100:.2f}%", f"Weighted F1: {metrics['classifier']['weighted_f1']:.4f}")
-    b4.metric("Outlier Profiles Flagged", "105 Candidates", "3.0% Market Anomaly Rate")
-
-    st.divider()
-
-    m_left, m_right = st.columns(2)
-
-    with m_left:
-        st.markdown("##### 🎯 Readiness Tier Confusion Matrix")
-        classes = metrics["classifier"]["classes"]
-        cm = np.array(metrics["classifier"]["confusion_matrix"])
-
-        fig_cm, ax_cm = plt.subplots(figsize=(6, 4.2), facecolor="#0e1726")
-        ax_cm.set_facecolor("#0e1726")
-        cax = ax_cm.matshow(cm, cmap="Blues")
-        fig_cm.colorbar(cax)
-
-        ax_cm.set_xticks(range(len(classes)))
-        ax_cm.set_yticks(range(len(classes)))
-        ax_cm.set_xticklabels(["Entry", "High-Spec", "Mid-Level", "Junior"], color="#94a3b8", fontsize=8.5)
-        ax_cm.set_yticklabels(["Entry", "High-Spec", "Mid-Level", "Junior"], color="#94a3b8", fontsize=8.5)
-        ax_cm.set_xlabel("Predicted Tier", color="#94a3b8")
-        ax_cm.set_ylabel("True Market Tier", color="#94a3b8")
-
-        for i in range(len(classes)):
-            for j in range(len(classes)):
-                val = cm[i, j]
-                ax_cm.text(j, i, str(val), ha="center", va="center", color="#ffffff" if val > cm.max()/2 else "#94a3b8", fontweight="bold")
-        st.pyplot(fig_cm)
-
-    with m_right:
-        st.markdown("##### 🌟 Global Salary Driver Importance Ranking")
-        top_feats = metrics["top_features"]
-        fig_imp, ax_imp = plt.subplots(figsize=(6, 4.2), facecolor="#0e1726")
-        ax_imp.set_facecolor("#0e1726")
-
-        f_names = [f["feature"].replace("_", " ").title() for f in top_feats][::-1]
-        f_vals = [f["importance"] for f in top_feats][::-1]
-
-        ax_imp.barh(f_names, f_vals, color="#38bdf8", height=0.6, edgecolor="none")
-        ax_imp.set_xlabel("Relative Importance Weight", color="#94a3b8")
-        ax_imp.tick_params(colors="#94a3b8", labelsize=8.5)
-        ax_imp.grid(axis="x", linestyle="--", alpha=0.15, color="#cbd5e1")
-        for spine in ax_imp.spines.values():
-            spine.set_visible(False)
-        st.pyplot(fig_imp)
+        st.markdown("###### Top Global Salary Drivers:")
+        for feat in metrics["top_features"][:4]:
+            st.markdown(f"- **{feat['feature'].replace('_', ' ').title()}**: {feat['importance']*100:.1f}% weight")
