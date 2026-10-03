@@ -1,0 +1,157 @@
+{
+  "regressor": {
+    "model_type": "GradientBoostingRegressor",
+    "r2_score": 0.9712,
+    "rmse_lpa": 1.111,
+    "mae_lpa": 0.854
+  },
+  "classifier": {
+    "model_type": "GradientBoostingClassifier",
+    "accuracy": 0.8757,
+    "weighted_f1": 0.875,
+    "confusion_matrix": [
+      [
+        17,
+        0,
+        0,
+        10
+      ],
+      [
+        0,
+        108,
+        13,
+        0
+      ],
+      [
+        0,
+        10,
+        318,
+        20
+      ],
+      [
+        7,
+        0,
+        27,
+        170
+      ]
+    ],
+    "classes": [
+      "Entry-Level Learner",
+      "High-Demand Specialist",
+      "Job-Ready Mid-Level",
+      "Junior Associate"
+    ],
+    "classification_report": {
+      "Entry-Level Learner": {
+        "precision": 0.7083333333333334,
+        "recall": 0.6296296296296297,
+        "f1-score": 0.6666666666666666,
+        "support": 27.0
+      },
+      "High-Demand Specialist": {
+        "precision": 0.9152542372881356,
+        "recall": 0.8925619834710744,
+        "f1-score": 0.9037656903765691,
+        "support": 121.0
+      },
+      "Job-Ready Mid-Level": {
+        "precision": 0.888268156424581,
+        "recall": 0.9137931034482759,
+        "f1-score": 0.9008498583569405,
+        "support": 348.0
+      },
+      "Junior Associate": {
+        "precision": 0.85,
+        "recall": 0.8333333333333334,
+        "f1-score": 0.8415841584158416,
+        "support": 204.0
+      },
+      "accuracy": 0.8757142857142857,
+      "macro avg": {
+        "precision": 0.8404639317615125,
+        "recall": 0.8173295124705784,
+        "f1-score": 0.8282165934540044,
+        "support": 700.0
+      },
+      "weighted avg": {
+        "precision": 0.8748401159251695,
+        "recall": 0.8757142857142857,
+        "f1-score": 0.8750493822294455,
+        "support": 700.0
+      }
+    }
+  },
+  "clustering": {
+    "algorithm": "K-Means",
+    "k_clusters": 4,
+    "explained_variance_ratio_pca": [
+      0.1523,
+      0.1136,
+      0.0912
+    ],
+    "archetypes": {
+      "0": "Core Systems & Algorithmic Backend Specialists",
+      "1": "Applied AI/ML & Data Science Specialists",
+      "2": "Cloud & DevOps Infrastructure Architects",
+      "3": "Emerging Full-Stack & Entry Developers"
+    }
+  },
+  "top_features": [
+    {
+      "feature": "competitiveness_score",
+      "importance": 0.6498
+    },
+    {
+      "feature": "experience_years",
+      "importance": 0.1674
+    },
+    {
+      "feature": "loc_remote",
+      "importance": 0.0698
+    },
+    {
+      "feature": "loc_tier1_hub",
+      "importance": 0.0583
+    },
+    {
+      "feature": "has_python",
+      "importance": 0.011
+    },
+    {
+      "feature": "has_system_design",
+      "importance": 0.0097
+    },
+    {
+      "feature": "has_ml_pytorch",
+      "importance": 0.0092
+    },
+    {
+      "feature": "college_tier_score",
+      "importance": 0.0059
+    }
+  ],
+  "feature_columns": [
+    "experience_years",
+    "internships_count",
+    "github_projects",
+    "dsa_problems_solved",
+    "certifications_count",
+    "has_python",
+    "has_sql",
+    "has_react_node",
+    "has_cloud_aws",
+    "has_docker_k8s",
+    "has_ml_pytorch",
+    "has_system_design",
+    "coding_intensity_index",
+    "cloud_devops_depth",
+    "ai_data_depth",
+    "fullstack_systems_depth",
+    "college_tier_score",
+    "education_score",
+    "loc_tier1_hub",
+    "loc_remote",
+    "skill_breadth",
+    "competitiveness_score"
+  ]
+}

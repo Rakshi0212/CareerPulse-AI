@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  careerpulse-app:
+    build: .
+    container_name: careerpulse-dashboard
+    restart: unless-stopped
+    ports:
+      - "8503:8501"
+    environment:
+      - PORT=8501
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
